@@ -12,14 +12,16 @@ __global__ void InterpForward(const int nthreads, Dtype* const top, const Dtype*
       int i=(index/width)%height;
       int j=index % width;
     
+      int top_height = height * 2;
+      int top_width  = width * 2;
 
       if(height != 4){
 	     //direct copy
-	      top[batch_id*num_channel*height*width*4 + channel_id*height*width*4 + i*2*width*2+j*2]=
+	      top[batch_id*num_channel*top_height*top_width + channel_id*top_height*top_width + i*2*top_width+j*2]=
 	      bottom[batch_id*num_channel*height*width + channel_id*height*width + i*width+j];
 	     //compute odd rows
 	      if(i!=height-1)
-		top[batch_id*num_channel*height*width*4 + channel_id*height*width*4 + (i*2+1)*width*2 + j*2]=
+		top[batch_id*num_channel*top_height*top_width + channel_id*top_height*top_width + (i*2+1)*top_width + j*2]=
 			 (bottom[batch_id*num_channel*height*width + channel_id*height*width + i*width+j]+
 			 bottom[batch_id*num_channel*height*width + channel_id*height*width + (i+1)*width+j])*0.5;
 	     //compute even columns besides the last one
@@ -98,14 +100,23 @@ template <typename Dtype>
 void InterpLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
   const Dtype* bottom_data = bottom[0]->gpu_data();
-  Dtype* top_data = top[0]->mutable_gpu_data();
- // const int count = bottom[0]->count();
-  const int count = height_*width_*channels_*batch_;//bottom[0]->count();
+  const int count = bottom[0]->count();
+  //const int count = height_*width_*channels_*batch_;//bottom[0]->count();
   // NOLINT_NEXT_LINE(whitespace/operators)
   //SinForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
   //    count, bottom_data, top_data);
+	batch_		=	bottom[0]->count(0)/bottom[0]->count(1);
+	channels_	=	bottom[0]->count(1)/bottom[0]->count(2);
+	height_		=	bottom[0]->count(2)/bottom[0]->count(3);
+	width_		=	bottom[0]->count(3)/bottom[0]->count(4);
+	  top[0]->Reshape(batch_, channels_, height_*2,
+	      width_*2);
+  Dtype* top_data = top[0]->mutable_gpu_data();
   InterpForward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(count, top_data, bottom_data, height_, width_, channels_, batch_);
   //printf("CAFFE BLOCKS: %d CAFFE NUM THREADS: %d \n", CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS);
+  //printf("multiplication:%d, batch: %d, channel: %d, height: %d, width: %d\n", count, batch_, channels_, height_, width_);
+  //printf("count():%d, count(0):%d, count(1): %d, count(2): %d, count(3): %d, count(4): %d\n", bottom[0]->count(),bottom[0]->count(0),bottom[0]->count(1),bottom[0]->count(2),bottom[0]->count(3),bottom[0]->count(4));
+  //printf("count batch: %d, count channel: %d, count height: %d, count width: %d\n", bottom[0]->count(0)/bottom[0]->count(1), bottom[0]->count(1)/bottom[0]->count(2), bottom[0]->count(2)/bottom[0]->count(3), bottom[0]->count(3)/bottom[0]->count(4));
 
     //dim3 numb(batch_/32+1, channels_/32);
     //dim3 block(32, 32);
@@ -230,7 +241,12 @@ void InterpLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
     const Dtype* bottom_data = bottom[0]->gpu_data();
     const Dtype* top_diff = top[0]->gpu_diff();
     Dtype* bottom_diff = bottom[0]->mutable_gpu_diff();
-    const int count = height_*width_*channels_*batch_;//bottom[0]->count();
+    const int count = bottom[0]->count();
+	batch_		=	bottom[0]->count(0)/bottom[0]->count(1);
+	channels_	=	bottom[0]->count(1)/bottom[0]->count(2);
+	height_		=	bottom[0]->count(2)/bottom[0]->count(3);
+	width_		=	bottom[0]->count(3)/bottom[0]->count(4);
+	//  top[0]->Reshape(batch_, channels_, height_*2,width_*2);
     // NOLINT_NEXT_LINE(whitespace/operators)
     //SinBackward<Dtype><<<CAFFE_GET_BLOCKS(count), CAFFE_CUDA_NUM_THREADS>>>(
     //    count, top_diff, bottom_data, bottom_diff);

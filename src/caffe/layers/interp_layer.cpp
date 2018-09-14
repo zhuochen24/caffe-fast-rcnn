@@ -8,10 +8,15 @@ template <typename Dtype>
 void InterpLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom,
       const vector<Blob<Dtype>*>& top) {
 
+	batch_=bottom[0]->num();
 	channels_=bottom[0]->channels();
 	height_=bottom[0]->height();
 	width_=bottom[0]->width();
-	batch_=bottom[0]->num();
+  	
+	//batch_		=	bottom[0]->count(0)/bottom[0]->count(1);
+	//channels_	=	bottom[0]->count(1)/bottom[0]->count(2);
+	//height_		=	bottom[0]->count(2)/bottom[0]->count(3);
+	//width_		=	bottom[0]->count(3)/bottom[0]->count(4);
 
 }
 
